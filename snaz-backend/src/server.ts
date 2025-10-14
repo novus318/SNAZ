@@ -17,7 +17,7 @@ connectDB();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3000'],
+  origin: '*',
   credentials: true
 }));
 app.use(morgan('combined'));
@@ -48,6 +48,8 @@ import companyRoutes from './routes/companyRoutes';
 import customerRoutes from './routes/customerRoutes';
 import dailyOrderRoutes from './routes/dailyOrderRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
+import billingRoutes from './routes/billingRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/drivers', driverRoutes);
@@ -56,6 +58,8 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/daily-orders', dailyOrderRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

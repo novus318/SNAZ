@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, User, Truck, Calendar, Building2, Settings, Edit3, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, User, Truck, Calendar, Building2, Settings, Edit3, X, DollarSign } from "lucide-react";
 import { apiClient, Customer, DailyOrder, Company } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,6 +56,15 @@ export default function CustomerDetailPage() {
   const [showCompanyAssignment, setShowCompanyAssignment] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<{[key: string]: {orderId: string, orderItemId: string, bagFormat: string}}>({});
+  // Billing & payments state
+  const [outstanding, setOutstanding] = useState<number>(0);
+  const [bills, setBills] = useState<any[]>([]);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [payAmount, setPayAmount] = useState('');
+  const [payDate, setPayDate] = useState<string>(new Date().toISOString().slice(0,10));
+  const [payMethod, setPayMethod] = useState<'cash'|'bank'|'upi'|'card'|'other'>('cash');
+  const [payRef, setPayRef] = useState('');
+  const [genLoading, setGenLoading] = useState(false);
 
   useEffect(() => {
     if (customerId) {
@@ -62,6 +72,12 @@ export default function CustomerDetailPage() {
       loadMonthlyOrders();
     }
   }, [customerId, currentMonth]);
+
+  useEffect(() => {
+    if (customerId) {
+      loadBilling();
+    }
+  }, [customerId]);
 
   const loadCustomer = async () => {
     try {
@@ -274,6 +290,50 @@ export default function CustomerDetailPage() {
       setCompanies(companiesData);
     } catch (error) {
       toast.error("Failed to load companies");
+    }
+  };
+
+  const loadBilling = async () => {
+    try {
+      const [billsResp, payments]:any = await Promise.all([
+        apiClient.getBills({ entityType: 'customer', entityId: customerId }),
+        apiClient.getPayments({ entityType: 'customer', entityId: customerId })
+      ]);
+      setBills(billsResp);
+      const bal = billsResp.reduce((s: number, b: any) => s + (b.balanceAmount || 0), 0);
+      setOutstanding(bal);
+      setRecentPayments(payments.slice(0, 5));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const submitPayment = async () => {
+    try {
+      const amt = parseFloat(payAmount);
+      if (!amt || amt <= 0) return toast.error('Enter valid amount');
+      await apiClient.recordPayment({ entityType: 'customer', entityId: customerId, amount: amt, date: payDate, method: payMethod, reference: payRef });
+      toast.success('Payment recorded');
+      setPayAmount('');
+      setPayRef('');
+      await loadBilling();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to record payment');
+    }
+  };
+
+  const generateBillForCurrentMonth = async () => {
+    try {
+      setGenLoading(true);
+      const y = currentMonth.getFullYear();
+      const m = currentMonth.getMonth() + 1;
+      await apiClient.generateBillForEntity({ entityType: 'customer', entityId: customerId, year: y, month: m });
+      toast.success(`Bill generated for ${currentMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`);
+      await loadBilling();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to generate bill');
+    } finally {
+      setGenLoading(false);
     }
   };
 
@@ -517,6 +577,120 @@ export default function CustomerDetailPage() {
           </Card>
         )}
 
+        {/* Billing & Payments */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Billing & Payments</CardTitle>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-sm">Outstanding: <span className="font-bold">{outstanding.toLocaleString()}</span></div>
+                <Button size="sm" variant="outline" onClick={generateBillForCurrentMonth} disabled={genLoading}>
+                  {genLoading ? 'Generating...' : `Generate ${currentMonth.toLocaleDateString('en-US', { month: 'short' })}`}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+              <div className="flex items-end gap-2">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Amount</div>
+                  <Input value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0.00" className="w-32" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Date</div>
+                  <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="w-40" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Method</div>
+                  <Select value={payMethod} onValueChange={(v:any) => setPayMethod(v)}>
+                    <SelectTrigger className="w-36"><SelectValue placeholder="Method" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bank">Bank</SelectItem>
+                      <SelectItem value="upi">UPI</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Reference</div>
+                  <Input value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="Txn/Ref" className="w-44" />
+                </div>
+                <Button onClick={submitPayment}>Record</Button>
+              </div>
+            </div>
+            {recentPayments.length > 0 && (
+              <div className="mt-4">
+                <div className="text-xs text-gray-500 mb-2">Recent Payments</div>
+                <div className="overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead><tr className="border-b"><th className="py-1 text-left">Date</th><th className="py-1 text-left">Method</th><th className="py-1">Ref</th><th className="py-1 text-right">Amount</th></tr></thead>
+                    <tbody>
+                      {recentPayments.map((p:any) => (
+                        <tr key={p._id} className="border-b">
+                          <td className="py-1">{new Date(p.date).toLocaleDateString()}</td>
+                          <td className="py-1 capitalize">{p.method}</td>
+                          <td className="py-1">{p.reference || '-'}</td>
+                          <td className="py-1 text-right">{p.amount.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+        </CardContent>
+        </Card>
+
+        {/* Bills List */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Bills</CardTitle>
+              <div className="text-xs text-muted-foreground">{bills.length} bill(s)</div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {bills.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-4">No bills yet.</div>
+            ) : (
+              <div className="overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b">
+                      <TableHead className="text-xs px-2 py-2">Bill No</TableHead>
+                      <TableHead className="text-xs px-2 py-2">Period</TableHead>
+                      <TableHead className="text-xs px-2 py-2 text-right">Total</TableHead>
+                      <TableHead className="text-xs px-2 py-2 text-right">Paid</TableHead>
+                      <TableHead className="text-xs px-2 py-2 text-right">Balance</TableHead>
+                      <TableHead className="text-xs px-2 py-2">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bills.map((b:any) => (
+                      <TableRow key={b._id} className="border-b">
+                        <TableCell className="px-2 py-2">
+                          <Link className="text-blue-600 hover:underline" href={`/bills/${b._id}`}>{b.number}</Link>
+                        </TableCell>
+                        <TableCell className="px-2 py-2">{b.periodYear}-{String(b.periodMonth).padStart(2,'0')}</TableCell>
+                        <TableCell className="px-2 py-2 text-right">{b.totalAmount?.toLocaleString?.() ?? b.totalAmount}</TableCell>
+                        <TableCell className="px-2 py-2 text-right">{(b.paidAmount || 0).toLocaleString?.() ?? b.paidAmount}</TableCell>
+                        <TableCell className="px-2 py-2 text-right">{b.balanceAmount?.toLocaleString?.() ?? b.balanceAmount}</TableCell>
+                        <TableCell className="px-2 py-2 capitalize">{b.status}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Monthly Orders Table */}
         <Card>
           <CardHeader className="pb-4">
@@ -593,7 +767,6 @@ export default function CustomerDetailPage() {
                       const dayTotal = (lunch?.totalCount || 0) + (dinner?.totalCount || 0);
                       
                       return (
-    <ProtectedRoute>
                         <TableRow key={day} className="hover:bg-muted/50">
                           <TableCell className="font-medium text-xs px-2 py-3">
                             {formatDayLabel(day)}
@@ -662,7 +835,6 @@ export default function CustomerDetailPage() {
             {days.length > 0 && (() => {
               const totals = calculateMonthTotals();
               return (
-    <ProtectedRoute>
                 <div className="mt-6 pt-4 border-t">
                   <div className="overflow-x-auto">
                     <Table>
