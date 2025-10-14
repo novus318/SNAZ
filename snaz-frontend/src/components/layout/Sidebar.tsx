@@ -63,6 +63,16 @@ const navigationItems = [
     title: "Dinner Orders",
     href: "/orders/dinner",
     icon: Moon
+  },
+  {
+    title: "Bills",
+    href: "/bills",
+    icon: FileText
+  },
+  {
+    title: "Payments",
+    href: "/payments",
+    icon: DollarSign
   }
 ];
 
@@ -124,7 +134,7 @@ export default function Sidebar() {
             <ul className="space-y-1.5">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                 
                 return (
                   <li key={item.href}>

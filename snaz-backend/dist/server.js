@@ -39,18 +39,24 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 // Routes
+const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const driverRoutes_1 = __importDefault(require("./routes/driverRoutes"));
 const foodCategoryRoutes_1 = __importDefault(require("./routes/foodCategoryRoutes"));
 const companyRoutes_1 = __importDefault(require("./routes/companyRoutes"));
 const customerRoutes_1 = __importDefault(require("./routes/customerRoutes"));
 const dailyOrderRoutes_1 = __importDefault(require("./routes/dailyOrderRoutes"));
 const analyticsRoutes_1 = __importDefault(require("./routes/analyticsRoutes"));
+const billingRoutes_1 = __importDefault(require("./routes/billingRoutes"));
+const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
+app.use('/api/auth', authRoutes_1.default);
 app.use('/api/drivers', driverRoutes_1.default);
 app.use('/api/food-categories', foodCategoryRoutes_1.default);
 app.use('/api/companies', companyRoutes_1.default);
 app.use('/api/customers', customerRoutes_1.default);
 app.use('/api/daily-orders', dailyOrderRoutes_1.default);
 app.use('/api/analytics', analyticsRoutes_1.default);
+app.use('/api/billing', billingRoutes_1.default);
+app.use('/api/payments', paymentRoutes_1.default);
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

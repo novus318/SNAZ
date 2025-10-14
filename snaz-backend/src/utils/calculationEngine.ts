@@ -79,12 +79,21 @@ export class CalculationEngine {
       const packageBreakdown: any[] = [];
 
       // Process each package category
+      const getIdStr = (v: any) => {
+        if (!v) return '';
+        if (typeof v === 'string') return v;
+        if (v._id) return v._id.toString();
+        try { return v.toString(); } catch { return ''; }
+      };
+
       customer.packages.forEach(pkg => {
         const categoryOrders = dailyOrders.flatMap(order =>
-          order.orders.filter(item =>
-            item.customerId.toString() === customerId &&
-            item.categoryId._id.toString() === pkg.categoryId._id.toString()
-          )
+          order.orders.filter(item => {
+            const itemCustomerId = getIdStr(item.customerId);
+            const itemCategoryId = getIdStr((item as any).categoryId);
+            const pkgCategoryId = getIdStr((pkg as any).categoryId);
+            return itemCustomerId === customerId && itemCategoryId === pkgCategoryId;
+          })
         );
 
         const totalQuantity = categoryOrders.reduce((sum, order) => sum + order.totalCount, 0);
@@ -104,7 +113,8 @@ export class CalculationEngine {
       // Calculate food totals
       dailyOrders.forEach(order => {
         order.orders.forEach(item => {
-          if (item.customerId.toString() === customerId) {
+          const itemCustomerId = getIdStr(item.customerId);
+          if (itemCustomerId === customerId) {
             totalVegFood += item.vegCount;
             totalNonVegFood += item.nonVegCount;
           }

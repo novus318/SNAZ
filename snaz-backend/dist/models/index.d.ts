@@ -10,3 +10,5 @@ export { default as DailyOrder } from './DailyOrder';
 export type { IDailyOrder, IOrderItem } from './DailyOrder';
 export { default as Invoice } from './Invoice';
 export type { IInvoice, IInvoiceItem } from './Invoice';
+export { default as User } from './User';
+export type { IUser } from './User';

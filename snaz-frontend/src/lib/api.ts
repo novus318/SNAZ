@@ -304,6 +304,55 @@ class ApiClient {
     return response.data;
   }
 
+  // Billing
+  async generateBills(data: { year: number; month: number }) {
+    const response = await this.request('/billing/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  }
+
+  async generateBillForEntity(data: { entityType: 'customer'|'company'; entityId: string; year: number; month: number }) {
+    const response = await this.request('/billing/generate/entity', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  }
+
+  async getBills(params?: { entityType?: 'customer' | 'company'; entityId?: string; year?: number; month?: number; status?: string }) {
+    const qs = params ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k,v]) => [k, String(v)]))) : '';
+    const response = await this.request(`/billing${qs}`);
+    return response.data;
+  }
+
+  async getBill(id: string) {
+    const response = await this.request(`/billing/${id}`);
+    return response.data;
+  }
+
+  async getLedger(params: { entityType: 'customer' | 'company'; entityId: string }) {
+    const qs = '?' + new URLSearchParams(params as any).toString();
+    const response = await this.request(`/billing/ledger${qs}`);
+    return response.data;
+  }
+
+  // Payments
+  async recordPayment(data: { entityType: 'customer' | 'company'; entityId: string; amount: number; date: string; method?: string; reference?: string; notes?: string; billId?: string }) {
+    const response = await this.request('/payments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  }
+
+  async getPayments(params?: { entityType?: 'customer' | 'company'; entityId?: string }) {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    const response = await this.request(`/payments${qs}`);
+    return response.data;
+  }
+
   async getRangeAnalytics(startDate: string, endDate: string) {
     const response = await this.request(`/analytics/range?startDate=${startDate}&endDate=${endDate}`);
     return response.data;

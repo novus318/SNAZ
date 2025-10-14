@@ -60,12 +60,13 @@ const createCustomer = async (req, res) => {
         if (!errors.isEmpty()) {
             return res.status(400).json({ success: false, errors: errors.array() });
         }
-        const { name, address, phone, email, driverId, packages, dailyFood, startDate, endDate } = req.body;
+        const { name, address, phone, email, companyId, driverId, packages, dailyFood, startDate, endDate } = req.body;
         const customer = new Customer_1.default({
             name,
             address,
             phone,
             email,
+            companyId,
             driverId,
             packages,
             dailyFood,
@@ -89,8 +90,8 @@ const updateCustomer = async (req, res) => {
         if (!errors.isEmpty()) {
             return res.status(400).json({ success: false, errors: errors.array() });
         }
-        const { name, address, phone, email, driverId, packages, dailyFood, startDate, endDate, isActive } = req.body;
-        const customer = await Customer_1.default.findByIdAndUpdate(req.params.id, { name, address, phone, email, driverId, packages, dailyFood, startDate, endDate, isActive }, { new: true, runValidators: true }).populate('driverId', 'name route')
+        const { name, address, phone, email, companyId, driverId, packages, dailyFood, startDate, endDate, isActive } = req.body;
+        const customer = await Customer_1.default.findByIdAndUpdate(req.params.id, { name, address, phone, email, companyId, driverId, packages, dailyFood, startDate, endDate, isActive }, { new: true, runValidators: true }).populate('driverId', 'name route')
             .populate('packages.categoryId', 'name');
         if (!customer) {
             return res.status(404).json({ success: false, message: 'Customer not found' });
